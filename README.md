@@ -16,7 +16,6 @@ Crucially, **no standard `java.util` collection libraries** (such as `ArrayList`
 - [System Architecture](#system-architecture)
 - [Network Topology & Algorithms](#network-topology--algorithms)
 - [Data Structures & Design Justifications](#data-structures--design-justifications)
-- [Simulation Lifecycle & Fault Tolerance](#simulation-lifecycle--fault-tolerance)
 - [Complexity Analysis](#complexity-analysis)
 - [Project Structure](#project-structure)
 - [Test Cases & Results](#test-cases--results)
@@ -155,55 +154,6 @@ When routing a packet from **A to D**:
 
 ---
 
-## Simulation Lifecycle & Fault Tolerance
-
-### 1. Ingestion & Transmission Flowchart (`sendPacket`)
-
-```mermaid
-flowchart TD
-    Start([Send Packet]) --> Input[Input Source & Destination]
-    Input --> Valid{Routers Valid?}
-    Valid -- No --> Err1[Print 'Invalid router']
-    Valid -- Yes --> CheckSame{Source == Dest?}
-    CheckSame -- Yes --> Inst[Delivered Instantly]
-    CheckSame -- No --> Algo[Select Algorithm: BFS or Dijkstra]
-    Algo --> Calc[Compute Shortest Path]
-    Calc --> PathExists{Path Found?}
-    PathExists -- No --> Err2[Destination Unreachable]
-    PathExists -- Yes --> Enq{Source Buffer Full?}
-    Enq -- Yes --> Drop[Drop Packet: Buffer Overflow]
-    Enq -- No --> Queued[Packet Queued at Source Router]
-```
-
-### 2. Per-Step Propagation & Rerouting Flowchart (`runStep`)
-
-```mermaid
-flowchart TD
-    StepStart([Run Simulation Step]) --> CheckActive{Any Packets in Network?}
-    CheckActive -- No --> Idle[No Packets in Network]
-    CheckActive -- Yes --> Deq[Dequeue 1 Packet per Active Router]
-    Deq --> DestCheck{Current Router == Dest?}
-    DestCheck -- Yes --> Deliv[Packet DELIVERED]
-    DestCheck -- No --> TTLCheck{Decrement TTL <= 0?}
-    TTLCheck -- Yes --> DropTTL[Packet DROPPED: TTL Expired]
-    TTLCheck -- No --> LinkCheck{Next Link Alive?}
-    LinkCheck -- No --> Reroute{Dijkstra Reroute Possible?}
-    Reroute -- No --> DropRoute[Packet DROPPED: No Route]
-    Reroute -- Yes --> UpdateRoute[Update Route & Set Next Hop]
-    LinkCheck -- Yes --> Advance[Advance Position Pointer]
-    UpdateRoute --> Advance
-    Advance --> BufCheck{Next-Hop Buffer Full?}
-    BufCheck -- Yes --> DropBuf[Packet DROPPED: Buffer Full]
-    BufCheck -- No --> EnqNext[Packet Enqueued at Next Router]
-```
-
-### Fault Tolerance Capabilities
-1. **Dynamic Link Failure Handling:** If a physical link along a packet's pre-computed path is deleted (option 4) while the packet is mid-transit, the current forwarding router intercepts the failure, invokes Dijkstra on-the-fly to find an alternate route to the destination, and resumes transmission.
-2. **Buffer Exhaustion Handling:** Routers enforce a hardware buffer limit (default: 3 packets). When traffic bursts exceed capacity, incoming packets are dropped immediately to protect router stability.
-3. **Loop Prevention via TTL:** Every packet begins with a Time-To-Live counter (default: 10 hops). Each forwarding hop decrements the TTL; if zero is reached, the packet is discarded to prevent infinite circulating loops.
-
----
-
 ## Complexity Analysis
 
 | Operation | Best Case | Average Case | Worst Case | Auxiliary Space | Explanation |
@@ -218,8 +168,6 @@ flowchart TD
 | **Dijkstra Routing (Least Delay)**| $O(V + E)$ | $O((V + E)\log V)$ | $O((V + E)\log V)$ | $O(V + E)$ | Min-heap guided greedy traversal |
 | **DFS All-Paths Enumeration** | $O(V + E)$ | Exponential | $O(V!)$ | $O(V)$ | Exhaustive recursive backtracking |
 | **Simulation Tick (Single Step)** | $O(V)$ | $O(V)$ | $O(V \cdot (V + E)\log V)$ | $O(1)$ | Dequeues 1 packet; reroutes if link fails |
-
-*Notation: $V$ = number of routers, $E$ = number of links, $d$ = router degree, $n$ = heap size.*
 
 ---
 
